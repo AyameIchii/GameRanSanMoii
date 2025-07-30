@@ -6,7 +6,7 @@ let snake = [{ x: 9 * box, y: 10 * box }];
 let direction = 'RIGHT';
 let food = randomFood();
 let score = 0;
-let speed = 150;
+let speed = 200; // bắt đầu chậm
 
 let gameInterval;
 
@@ -81,9 +81,12 @@ function draw() {
   if (headX === food.x && headY === food.y) {
     score++;
     food = randomFood();
-    if (speed > 50) {
+
+    // Tăng tốc độ theo điểm số (mỗi 5 điểm giảm 15ms, min = 50ms)
+    const newSpeed = 200 - Math.floor(score / 5) * 15;
+    if (newSpeed < speed && newSpeed >= 50) {
       clearInterval(gameInterval);
-      speed -= 5;
+      speed = newSpeed;
       gameInterval = setInterval(draw, speed);
     }
   } else {
@@ -110,7 +113,7 @@ function startGame() {
   direction = 'RIGHT';
   food = randomFood();
   score = 0;
-  speed = 150;
+  speed = 200;
   clearInterval(gameInterval);
   gameInterval = setInterval(draw, speed);
 }

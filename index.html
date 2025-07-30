@@ -1,80 +1,35 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rắn Săn Mồi</title>
-    <style>
-        body {
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
-            flex-wrap: wrap;
-            min-height: 100vh;
-            padding: 20px;
-            background-color: #50B3E3;
-            margin: 0;
-            font-family: 'Arial', sans-serif;
-            color: #fff;
-        }
-        canvas {
-            border: 5px solid #fff;
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
-            background-color: #f0f0f0;
-        }
-        .game-over {
-            text-align: center;
-            font-size: 2em;
-            color: red;
-            display: none;
-        }
-        .score {
-            font-size: 1.5em;
-            margin: 10px 0;
-        }
-        button {
-            padding: 10px 20px;
-            font-size: 1em;
-            cursor: pointer;
-            background-color: #fff;
-            color: #50B3E3;
-            border: none;
-            border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-            margin: 10px;
-        }
-        button:hover {
-            background-color: #f0f0f0;
-        }
-        .leaderboard {
-            margin: 20px;
-            padding: 15px;
-            background: rgba(255,255,255,0.2);
-            border-radius: 10px;
-            min-width: 200px;
-        }
-        .leaderboard ol {
-            padding-left: 20px;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Rắn Săn Mồi</title>
+  <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
-    <h1>Rắn Săn Mồi</h1>
-    <canvas id="gameCanvas" width="600" height="400"></canvas>
-    <div class="score" id="scoreDisplay">Điểm: 0</div>
-    <div class="game-over" id="gameOverMessage">
-        Game Over!<br>
-        Điểm của bạn: <span id="finalScore"></span><br>
-        Điểm cao nhất: <span id="highScore"></span><br>
-        <button id="restartButton">Chơi lại</button>
-    </div>
-    <button id="startButton">Bắt đầu</button>
-    <div class="leaderboard">
-        <h2>Bảng Xếp Hạng</h2>
-        <ol id="scoreList">
-            <!-- Leaderboard items will be added dynamically -->
-        </ol>
-    </div>
-    <script src="snake.js"></script>
+  <div class="menu">
+    <h1>🐍 Rắn Săn Mồi</h1>
+    <button onclick="startGame()">Start Game</button>
+    <button onclick="showLeaderboard()">Leaderboard</button>
+  </div>
+
+  <canvas id="gameCanvas" width="400" height="400"></canvas>
+
+  <div class="game-over" style="display:none">
+    <h2>Game Over</h2>
+    <p id="final-score"></p>
+    <input id="player-name" placeholder="Tên bạn..." />
+    <button onclick="saveScore()">Lưu kết quả</button>
+    <button onclick="restartGame()">Chơi lại</button>
+    <button onclick="backToMenu()">Menu</button>
+  </div>
+
+  <div class="leaderboard" style="display:none">
+    <h2>Bảng xếp hạng</h2>
+    <ul id="leaderboard-list"></ul>
+    <button onclick="backToMenu()">Menu</button>
+  </div>
+
+  <script src="script.js"></script>
 </body>
 </html>

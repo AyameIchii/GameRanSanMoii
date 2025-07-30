@@ -1,27 +1,42 @@
 body {
-  background: #111;
-  color: white;
-  font-family: sans-serif;
-  text-align: center;
+  margin: 0;
+  font-family: 'Segoe UI', sans-serif;
+  background-color: #f0f8ff; /* Màu nền sáng nhẹ */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  flex-direction: column;
 }
+
 canvas {
-  display: none;
-  margin: 20px auto;
-  background: #222;
+  background-color: #ffffff;
+  border: 2px solid #4caf50;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
 }
-.menu, .game-over, .leaderboard {
-  margin-top: 50px;
+
+.menu,
+.game-over,
+.leaderboard {
+  background: #ffffff;
+  border: 1px solid #ccc;
+  padding: 20px 30px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+  border-radius: 12px;
 }
+
 button {
-  margin: 10px;
-  padding: 10px 20px;
+  background: #4caf50;
+  color: white;
+  border: none;
+  padding: 12px 20px;
   font-size: 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin: 10px 5px;
+  transition: background 0.3s ease;
 }
-input {
-  padding: 8px;
-  font-size: 16px;
-}
-ul {
-  list-style: none;
-  padding: 0;
+
+button:hover {
+  background: #45a049;
 }

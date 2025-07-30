@@ -1,0 +1,21 @@
+body {
+  text-align: center;
+  font-family: Arial;
+  background: #f0f0f0;
+}
+
+canvas {
+  border: 2px solid #000;
+  margin: 20px auto;
+  display: none;
+}
+
+.menu, .game-over, .leaderboard {
+  margin-top: 50px;
+}
+
+button {
+  padding: 10px 20px;
+  margin: 10px;
+  font-size: 16px;
+}

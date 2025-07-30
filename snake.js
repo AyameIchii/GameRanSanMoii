@@ -1,13 +1,30 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
+const gameOverMessage = document.getElementById("gameOverMessage");
+const finalScore = document.getElementById("finalScore");
+const scoreDisplay = document.getElementById("score");
+const restartButton = document.getElementById("restartButton");
 
 const box = 10;
-let snake = [{ x: 5 * box, y: 5 * box }];
-let direction = "RIGHT";
-let food = {
-    x: Math.floor(Math.random() * (canvas.width / box)) * box,
-    y: Math.floor(Math.random() * (canvas.height / box)) * box,
-};
+let snake;
+let direction;
+let food;
+let score;
+let highScore = localStorage.getItem("highScore") ? parseInt(localStorage.getItem("highScore")) : 0;
+
+function initGame() {
+    snake = [{ x: 5 * box, y: 5 * box }];
+    direction = "RIGHT";
+    food = {
+        x: Math.floor(Math.random() * (canvas.width / box)) * box,
+        y: Math.floor(Math.random() * (canvas.height / box)) * box,
+    };
+    score = 0;
+    scoreDisplay.innerText = "Điểm: " + score;
+    gameOverMessage.style.display = "none";
+    clearInterval(game);
+    game = setInterval(draw, 100);
+}
 
 document.addEventListener("keydown", directionControl);
 
@@ -59,6 +76,8 @@ function draw() {
             x: Math.floor(Math.random() * (canvas.width / box)) * box,
             y: Math.floor(Math.random() * (canvas.height / box)) * box,
         };
+        score++;
+        scoreDisplay.innerText = "Điểm: " + score;
     } else {
         snake.pop();
     }
@@ -67,10 +86,18 @@ function draw() {
 
     if (snakeX < 0 || snakeY < 0 || snakeX >= canvas.width || snakeY >= canvas.height || collision(newHead, snake)) {
         clearInterval(game);
-        alert("Game Over!");
+        if (score > highScore) {
+            highScore = score;
+            localStorage.setItem("highScore", highScore);
+        }
+        finalScore.innerText = score;
+        gameOverMessage.style.display = "block"; // Hiển thị thông báo Game Over
     }
 
     snake.unshift(newHead);
 }
 
+restartButton.addEventListener("click", initGame);
+
+initGame();
 const game = setInterval(draw, 100);

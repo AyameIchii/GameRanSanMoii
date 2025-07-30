@@ -1,4 +1,6 @@
 // data/scores.js
-let scores = [];
+const scoreStore = {
+  scores: [],
+};
 
-export default scores;
+export default scoreStore;

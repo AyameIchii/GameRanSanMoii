@@ -6,7 +6,7 @@ let snake = [{ x: 9 * box, y: 10 * box }];
 let direction = 'RIGHT';
 let food = randomFood();
 let score = 0;
-let speed = 200; // bắt đầu chậm
+let speed = 200;
 
 let gameInterval;
 
@@ -47,17 +47,21 @@ function randomFood() {
 }
 
 function draw() {
-  ctx.fillStyle = 'black';
+  // Nền canvas trắng
+  ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+  // Rắn
   for (let i = 0; i < snake.length; i++) {
-    ctx.fillStyle = i === 0 ? 'lime' : 'white';
+    ctx.fillStyle = i === 0 ? '#4caf50' : '#a5d6a7'; // xanh lá đậm và nhạt
     ctx.fillRect(snake[i].x, snake[i].y, box, box);
   }
 
-  ctx.fillStyle = 'red';
+  // Thức ăn
+  ctx.fillStyle = '#f44336'; // đỏ tươi
   ctx.fillRect(food.x, food.y, box, box);
 
+  // Di chuyển rắn
   let headX = snake[0].x;
   let headY = snake[0].y;
 
@@ -82,7 +86,6 @@ function draw() {
     score++;
     food = randomFood();
 
-    // Tăng tốc độ theo điểm số (mỗi 5 điểm giảm 15ms, min = 50ms)
     const newSpeed = 200 - Math.floor(score / 5) * 15;
     if (newSpeed < speed && newSpeed >= 50) {
       clearInterval(gameInterval);
@@ -93,9 +96,10 @@ function draw() {
     snake.pop();
   }
 
-  ctx.fillStyle = 'white';
+  // Hiển thị điểm
+  ctx.fillStyle = '#333333';
   ctx.font = '20px Arial';
-  ctx.fillText('Điểm: ' + score, 10, 20);
+  ctx.fillText('Điểm: ' + score, 10, 25);
 }
 
 function collision(head, array) {

@@ -1,11 +1,10 @@
-<!-- index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Rắn Săn Mồi</title>
-  <link rel="stylesheet" href="style.css"/>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Rắn Săn Mồi</title>
+<link rel="stylesheet" href="style.css"/>
 </head>
 <body>
   <div class="menu">
@@ -13,24 +12,20 @@
     <button id="startBtn">Start Game</button>
     <button id="leaderboardBtn">Leaderboard</button>
   </div>
-
   <canvas id="gameCanvas" width="600" height="600"></canvas>
-
   <div class="game-over" style="display:none">
     <h2>Game Over</h2>
     <p id="final-score"></p>
-    <input id="player-name" placeholder="Tên bạn..." />
+    <input id="player-name" placeholder="Tên bạn..."/>
     <button id="saveScoreBtn">Lưu kết quả</button>
     <button id="restartBtn">Chơi lại</button>
     <button id="backBtn">Menu</button>
   </div>
-
   <div class="leaderboard" style="display:none">
     <h2>Bảng xếp hạng</h2>
     <ul id="leaderboard-list"></ul>
     <button id="backFromLeaderboard">Menu</button>
   </div>
-
   <script src="snake.js"></script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 // pages/api/get-leaderboard.js
-import scoreStore from '../../data/scores.js';
+import { getScores } from '../../data/scores';
 
 export default function handler(req, res) {
-  res.status(200).json(scoreStore.scores || []);
+  res.status(200).json(getScores());
 }

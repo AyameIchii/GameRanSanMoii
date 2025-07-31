@@ -1,0 +1,13 @@
+{
+  "name": "snake-game-multiplayer",
+  "version": "1.0.0",
+  "description": "Multiplayer Snake Game with PHP backend",
+  "main": "index.html",
+  "scripts": {
+    "dev": "php -S localhost:8000",
+    "build": "echo 'No build step required'"
+  },
+  "keywords": ["snake", "game", "php", "multiplayer", "leaderboard"],
+  "author": "Your Name",
+  "license": "MIT"
+}

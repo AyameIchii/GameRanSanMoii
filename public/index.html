@@ -234,6 +234,7 @@
                 <p>Score: <span id="currentScore">0</span></p>
                 <p>High Score: <span id="highScore">0</span></p>
                 <p>Level: <span id="currentLevel">1</span></p>
+
                 <p>Status: <span id="gameStatus">Ready to Start</span></p>
             </div>
             
@@ -265,12 +266,32 @@
         const tileCount = canvas.width / gridSize;
         
         const SUPABASE_URL = 'https://zwixilhhgrwhftnhgifh.supabase.co';
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3aXhpbGhoZ3J3aGZ0bmhnaWZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM5MzI0MzMsImV4cCI6MjA2OTUwODQzM30.3pE8bDG67aqi3gFEG-JQu31zsJynVElFbfhOsLgFAO0'; // rút gọn để bảo mật
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3aXhpbGhoZ3J3aGZ0bmhnaWZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM5MzI0MzMsImV4cCI6MjA2OTUwODQzM30.3pE8bDG67aqi3gFEG-JQu31zsJynVElFbfhOsLgFAO0';
 
+        // Check if online features are available
+        let useOnlineFeatures = true;
+
+        // Point multipliers based on speed/difficulty
+        const DIFFICULTY_MULTIPLIERS = {
+            500: 0.5,   // Turtle
+            400: 0.7,   // Snail
+            200: 1.0,   // Slow
+            150: 1.0,   // Normal
+            100: 1.5,   // Fast
+            50: 2.0,    // Lightning
+            20: 3.0,    // Extreme
+            10: 4.0,    // Insane
+            5: 5.0,     // God Mode
+            1: 10.0     // Hell Mode
+        };
 
         let gameState = {
             snake: [{x: 10, y: 10}],
             food: {x: 15, y: 15},
+            bigFood: null,
+            bigFoodTimer: null,
+            bigFoodStartTime: null,
+            bigFoodDuration: 5000, // 5 seconds
             dx: 0,
             dy: 0,
             score: 0,
@@ -280,7 +301,11 @@
             speed: 150,
             gameStarted: false,
             baseSpeed: 150,
-            speedIncrement: 4
+            speedIncrement: 4,
+            foodsEaten: 0,
+            difficultyMultiplier: 1.0,
+            inputBuffer: [], // Buffer for direction inputs
+            lastDirection: {dx: 0, dy: 0}
         };
 
         // Initialize game
@@ -301,22 +326,26 @@
             const selectedSpeed = parseInt(document.getElementById('gameSpeed').value);
             gameState.baseSpeed = selectedSpeed;
             gameState.speed = selectedSpeed;
-            gameState.speedIncrement = Math.max(2, Math.floor(selectedSpeed * 0.02)); // 2% speed increase per level
+            gameState.speedIncrement = Math.max(2, Math.floor(selectedSpeed * 0.02));
             gameState.lastSpeedIncrease = 0;
+            gameState.difficultyMultiplier = DIFFICULTY_MULTIPLIERS[selectedSpeed] || 1.0;
+            gameState.foodsEaten = 0;
+            gameState.inputBuffer = [];
+            gameState.lastDirection = {dx: 0, dy: 0};
             
             gameState.gameRunning = true;
             gameState.gamePaused = false;
-            gameState.gameStarted = false;  // Will start when space is pressed
+            gameState.gameStarted = false;
             gameState.snake = [{x: Math.floor(tileCount/2), y: Math.floor(tileCount/2)}];
             gameState.dx = 0;
             gameState.dy = 0;
             gameState.score = 0;
+            gameState.bigFood = null;
             
             generateFood();
             updateUI();
             drawGame();
             
-            // Start the game loop but snake won't move until space is pressed
             if (gameState.gameLoop) clearInterval(gameState.gameLoop);
             gameState.gameLoop = setInterval(gameLoop, gameState.speed);
             
@@ -324,7 +353,6 @@
             document.getElementById('pauseBtn').disabled = false;
             document.getElementById('gameStatus').textContent = 'Press SPACE to start moving!';
             document.getElementById('currentScore').textContent = '0';
-            document.getElementById('currentLevel').textContent = '1';
             document.getElementById('currentLevel').textContent = '1';
         }
 
@@ -346,6 +374,14 @@
 
         function resetGame() {
             clearInterval(gameState.gameLoop);
+            
+            // Clear big food timer if exists
+            if (gameState.bigFoodTimer) {
+                clearTimeout(gameState.bigFoodTimer);
+                gameState.bigFoodTimer = null;
+                gameState.bigFoodStartTime = null;
+            }
+            
             gameState.gameRunning = false;
             gameState.gamePaused = false;
             gameState.gameStarted = false;
@@ -355,6 +391,10 @@
             gameState.score = 0;
             gameState.speed = gameState.baseSpeed || 150;
             gameState.lastSpeedIncrease = 0;
+            gameState.foodsEaten = 0;
+            gameState.bigFood = null;
+            gameState.inputBuffer = [];
+            gameState.lastDirection = {dx: 0, dy: 0};
             
             generateFood();
             drawGame();
@@ -367,10 +407,33 @@
             document.getElementById('currentScore').textContent = '0';
         }
 
+        function processInputBuffer() {
+            if (gameState.inputBuffer.length === 0) return;
+            
+            const nextDirection = gameState.inputBuffer.shift();
+            const currentDx = gameState.dx;
+            const currentDy = gameState.dy;
+            
+            // Only allow if not opposite direction
+            if ((nextDirection.dx === 1 && currentDx !== -1) ||
+                (nextDirection.dx === -1 && currentDx !== 1) ||
+                (nextDirection.dy === 1 && currentDy !== -1) ||
+                (nextDirection.dy === -1 && currentDy !== 1)) {
+                
+                gameState.dx = nextDirection.dx;
+                gameState.dy = nextDirection.dy;
+                gameState.lastDirection = {dx: nextDirection.dx, dy: nextDirection.dy};
+            }
+        }
+
         function gameLoop() {
             if (gameState.gamePaused) return;
             
-            // Only move snake if game has started (space has been pressed)
+            // Process buffered input
+            if (gameState.gameStarted) {
+                processInputBuffer();
+            }
+            
             if (gameState.gameStarted) {
                 moveSnake();
                 
@@ -379,37 +442,86 @@
                     return;
                 }
                 
+                // Check normal food collision
                 if (checkFoodCollision()) {
-                    gameState.score += 10;
+                    const eatenFoodPosition = {x: gameState.food.x, y: gameState.food.y}; // Remember eaten food position
+                    
+                    gameState.foodsEaten++;
+                    const basePoints = 10;
+                    const pointsEarned = Math.round(basePoints * gameState.difficultyMultiplier);
+                    gameState.score += pointsEarned;
+                    
                     document.getElementById('currentScore').textContent = gameState.score;
                     
-                    // Increase speed EVERY time snake eats food
                     gameState.speed = Math.max(20, gameState.speed - gameState.speedIncrement);
-                    
-                    // Update the game loop with new faster speed
                     clearInterval(gameState.gameLoop);
                     gameState.gameLoop = setInterval(gameLoop, gameState.speed);
                     
-                    // Show level every 50 points but speed increases every food
-                    const currentLevel = Math.floor(gameState.score / 50) + 1;
-                    if (gameState.score % 50 === 0) {
-                        document.getElementById('gameStatus').textContent = `Level ${currentLevel} Reached!`;
-                        setTimeout(() => {
-                            if (gameState.gameRunning && !gameState.gamePaused) {
-                                document.getElementById('gameStatus').textContent = 'Playing - Getting Faster!';
-                            }
-                        }, 1000);
-                    } else {
-                        // Brief speed increase notification
-                        document.getElementById('gameStatus').textContent = 'Speed Up!';
+                    // Check if it's time for big food (every 5th food)
+                    if (gameState.foodsEaten % 5 === 0) {
+                        generateBigFood();
+                        generateFood(eatenFoodPosition); // Generate new small food avoiding the eaten position
+                        document.getElementById('gameStatus').textContent = 'Big Food Appeared! 5x Points!';
                         setTimeout(() => {
                             if (gameState.gameRunning && !gameState.gamePaused) {
                                 document.getElementById('gameStatus').textContent = 'Playing';
                             }
-                        }, 300);
+                        }, 1500);
+                    } else {
+                        generateFood();
+                        
+                        const currentLevel = Math.floor(gameState.score / 50) + 1;
+                        if (gameState.score % 50 === 0) {
+                            document.getElementById('gameStatus').textContent = `Level ${currentLevel} Reached!`;
+                            setTimeout(() => {
+                                if (gameState.gameRunning && !gameState.gamePaused) {
+                                    document.getElementById('gameStatus').textContent = 'Playing';
+                                }
+                            }, 1000);
+                        } else {
+                            document.getElementById('gameStatus').textContent = 'Speed Up!';
+                            setTimeout(() => {
+                                if (gameState.gameRunning && !gameState.gamePaused) {
+                                    document.getElementById('gameStatus').textContent = 'Playing';
+                                }
+                            }, 300);
+                        }
+                    }
+                } 
+                // Check big food collision
+                else if (gameState.bigFood && checkBigFoodCollision()) {
+                    // Clear the decay timer since food was eaten
+                    if (gameState.bigFoodTimer) {
+                        clearTimeout(gameState.bigFoodTimer);
+                        gameState.bigFoodTimer = null;
+                        gameState.bigFoodStartTime = null;
                     }
                     
-                    generateFood();
+                    const basePoints = 50; // 5x normal food
+                    const pointsEarned = Math.round(basePoints * gameState.difficultyMultiplier);
+                    gameState.score += pointsEarned;
+                    
+                    document.getElementById('currentScore').textContent = gameState.score;
+                    
+                    // Add extra segments for big food
+                    for (let i = 0; i < 4; i++) {
+                        const tail = gameState.snake[gameState.snake.length - 1];
+                        gameState.snake.push({x: tail.x, y: tail.y});
+                    }
+                    
+                    gameState.bigFood = null;
+                    // Don't generate new small food when big food is eaten
+                    
+                    document.getElementById('gameStatus').textContent = `Big Food! +${pointsEarned} Points!`;
+                    setTimeout(() => {
+                        if (gameState.gameRunning && !gameState.gamePaused) {
+                            document.getElementById('gameStatus').textContent = 'Playing';
+                        }
+                    }, 1000);
+                    
+                    gameState.speed = Math.max(20, gameState.speed - gameState.speedIncrement);
+                    clearInterval(gameState.gameLoop);
+                    gameState.gameLoop = setInterval(gameLoop, gameState.speed);
                 } else {
                     gameState.snake.pop();
                 }
@@ -426,12 +538,10 @@
         function checkCollision() {
             const head = gameState.snake[0];
             
-            // Wall collision
             if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) {
                 return true;
             }
             
-            // Self collision
             for (let i = 1; i < gameState.snake.length; i++) {
                 if (head.x === gameState.snake[i].x && head.y === gameState.snake[i].y) {
                     return true;
@@ -446,27 +556,116 @@
             return head.x === gameState.food.x && head.y === gameState.food.y;
         }
 
-        function generateFood() {
-            gameState.food = {
-                x: Math.floor(Math.random() * tileCount),
-                y: Math.floor(Math.random() * tileCount)
-            };
+        function checkBigFoodCollision() {
+            if (!gameState.bigFood) return false;
             
-            // Make sure food doesn't spawn on snake
-            for (let segment of gameState.snake) {
-                if (segment.x === gameState.food.x && segment.y === gameState.food.y) {
-                    generateFood();
-                    return;
+            const head = gameState.snake[0];
+            
+            // Check collision with any part of the 3x3 big food
+            for (let dx = 0; dx < 3; dx++) {
+                for (let dy = 0; dy < 3; dy++) {
+                    if (head.x === gameState.bigFood.x + dx && head.y === gameState.bigFood.y + dy) {
+                        return true;
+                    }
                 }
             }
+            return false;
+        }
+
+        function generateFood(avoidPosition = null) {
+            do {
+                gameState.food = {
+                    x: Math.floor(Math.random() * tileCount),
+                    y: Math.floor(Math.random() * tileCount)
+                };
+            } while (isFoodOnSnake(gameState.food) || 
+                     isFoodOnBigFood(gameState.food) ||
+                     (avoidPosition && gameState.food.x === avoidPosition.x && gameState.food.y === avoidPosition.y));
+        }
+
+        function generateBigFood() {
+            do {
+                gameState.bigFood = {
+                    x: Math.floor(Math.random() * (tileCount - 2)), // -2 to ensure 3x3 fits
+                    y: Math.floor(Math.random() * (tileCount - 2))
+                };
+            } while (isBigFoodOnSnake() || isBigFoodOnFood());
+            
+            // Set timer for big food decay
+            gameState.bigFoodStartTime = Date.now();
+            
+            // Clear existing timer if any
+            if (gameState.bigFoodTimer) {
+                clearTimeout(gameState.bigFoodTimer);
+            }
+            
+            // Set timer to remove big food after 5 seconds
+            gameState.bigFoodTimer = setTimeout(() => {
+                if (gameState.bigFood) {
+                    gameState.bigFood = null;
+                    gameState.bigFoodTimer = null;
+                    gameState.bigFoodStartTime = null;
+                    
+                    if (gameState.gameRunning && !gameState.gamePaused) {
+                        document.getElementById('gameStatus').textContent = 'Big Food Expired!';
+                        setTimeout(() => {
+                            if (gameState.gameRunning && !gameState.gamePaused) {
+                                document.getElementById('gameStatus').textContent = 'Playing';
+                            }
+                        }, 1000);
+                    }
+                }
+            }, gameState.bigFoodDuration);
+        }
+
+        function isFoodOnSnake(food) {
+            for (let segment of gameState.snake) {
+                if (segment.x === food.x && segment.y === food.y) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function isFoodOnBigFood(food) {
+            if (!gameState.bigFood) return false;
+            
+            for (let dx = 0; dx < 3; dx++) {
+                for (let dy = 0; dy < 3; dy++) {
+                    if (food.x === gameState.bigFood.x + dx && food.y === gameState.bigFood.y + dy) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        function isBigFoodOnSnake() {
+            if (!gameState.bigFood) return false;
+            
+            for (let dx = 0; dx < 3; dx++) {
+                for (let dy = 0; dy < 3; dy++) {
+                    const bigFoodSegment = {
+                        x: gameState.bigFood.x + dx,
+                        y: gameState.bigFood.y + dy
+                    };
+                    if (isFoodOnSnake(bigFoodSegment)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        function isBigFoodOnFood() {
+            if (!gameState.bigFood) return false;
+            return isFoodOnBigFood(gameState.food);
         }
 
         function drawGame() {
-            // Clear canvas with light background
             ctx.fillStyle = '#f5f5f5';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            // Draw grid
             ctx.strokeStyle = '#e0e0e0';
             ctx.lineWidth = 1;
             for (let i = 0; i <= tileCount; i++) {
@@ -481,43 +680,85 @@
                 ctx.stroke();
             }
             
-            // Draw snake
             gameState.snake.forEach((segment, index) => {
                 if (index === 0) {
-                    // Snake head - brighter color
                     ctx.fillStyle = '#1976d2';
                 } else {
-                    // Snake body
                     ctx.fillStyle = '#42a5f5';
                 }
                 ctx.fillRect(segment.x * gridSize + 2, segment.y * gridSize + 2, gridSize - 4, gridSize - 4);
                 
-                // Add some shine to snake segments
                 if (index === 0) {
                     ctx.fillStyle = '#bbdefb';
                     ctx.fillRect(segment.x * gridSize + 4, segment.y * gridSize + 4, gridSize - 8, gridSize - 8);
                 }
             });
             
-            // Draw food with glow effect
+            // Draw normal food
             ctx.fillStyle = '#4caf50';
             ctx.fillRect(gameState.food.x * gridSize + 2, gameState.food.y * gridSize + 2, gridSize - 4, gridSize - 4);
-            
-            // Add glow to food
             ctx.fillStyle = '#c8e6c9';
             ctx.fillRect(gameState.food.x * gridSize + 6, gameState.food.y * gridSize + 6, gridSize - 12, gridSize - 12);
+            
+            // Draw big food (3x3) with decay effect
+            if (gameState.bigFood) {
+                // Calculate decay progress (0 to 1)
+                let decayProgress = 0;
+                if (gameState.bigFoodStartTime) {
+                    const elapsed = Date.now() - gameState.bigFoodStartTime;
+                    decayProgress = Math.min(elapsed / gameState.bigFoodDuration, 1);
+                }
+                
+                // Calculate alpha based on decay (starts at 1, fades to 0.3)
+                const alpha = Math.max(0.3, 1 - (decayProgress * 0.7));
+                
+                // Calculate size reduction based on decay
+                const sizeReduction = Math.floor(decayProgress * 8); // Reduce by up to 8 pixels
+                
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = '#ff6f00';
+                
+                for (let dx = 0; dx < 3; dx++) {
+                    for (let dy = 0; dy < 3; dy++) {
+                        const x = (gameState.bigFood.x + dx) * gridSize + 2 + sizeReduction/2;
+                        const y = (gameState.bigFood.y + dy) * gridSize + 2 + sizeReduction/2;
+                        const size = gridSize - 4 - sizeReduction;
+                        ctx.fillRect(x, y, size, size);
+                    }
+                }
+                
+                // Add glow to big food (also affected by decay)
+                ctx.fillStyle = '#ffcc80';
+                for (let dx = 0; dx < 3; dx++) {
+                    for (let dy = 0; dy < 3; dy++) {
+                        const x = (gameState.bigFood.x + dx) * gridSize + 6 + sizeReduction/2;
+                        const y = (gameState.bigFood.y + dy) * gridSize + 6 + sizeReduction/2;
+                        const size = gridSize - 12 - sizeReduction;
+                        if (size > 0) {
+                            ctx.fillRect(x, y, size, size);
+                        }
+                    }
+                }
+                
+                ctx.globalAlpha = 1.0; // Reset alpha for other drawings
+            }
         }
 
         function gameOver() {
             clearInterval(gameState.gameLoop);
+            
+            // Clear big food timer if exists
+            if (gameState.bigFoodTimer) {
+                clearTimeout(gameState.bigFoodTimer);
+                gameState.bigFoodTimer = null;
+                gameState.bigFoodStartTime = null;
+            }
+            
             gameState.gameRunning = false;
             
             const playerName = document.getElementById('playerName').value.trim();
-            
-            // Save score to leaderboard
             saveScore(playerName, gameState.score);
             
-            // Update high score
             const currentHighScore = parseInt(localStorage.getItem('highScore') || '0');
             if (gameState.score > currentHighScore) {
                 localStorage.setItem('highScore', gameState.score.toString());
@@ -546,9 +787,17 @@
             document.getElementById('highScore').textContent = highScore;
         }
 
-        // Multi-user leaderboard functions using PHP API
         async function saveScore(playerName, score) {
+            // Always save locally first
+            saveScoreLocally(playerName, score);
+            
+            // Try to save online if available
+            if (!useOnlineFeatures) return;
+            
             try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+                
                 const response = await fetch(`${SUPABASE_URL}/rest/v1/scores`, {
                     method: 'POST',
                     headers: {
@@ -559,20 +808,25 @@
                     body: JSON.stringify({
                         name: playerName,
                         score: score
-                    })
+                    }),
+                    signal: controller.signal
                 });
                 
-                const result = await response.json();
+                clearTimeout(timeoutId);
                 
-                if (!result.success) {
-                    console.warn('Failed to save score:', result.error);
-                    // Fallback to localStorage
-                    saveScoreLocally(playerName, score);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
+                
+                console.log('Score saved online successfully');
+                
             } catch (error) {
-                console.warn('Network error saving score:', error);
-                // Fallback to localStorage
-                saveScoreLocally(playerName, score);
+                if (error.name === 'AbortError') {
+                    console.warn('Online save timed out, using local storage');
+                } else {
+                    console.warn('Failed to save online, using local storage:', error.message);
+                }
+                useOnlineFeatures = false; // Disable online features for this session
             }
         }
 
@@ -593,25 +847,43 @@
             const leaderboardList = document.getElementById('leaderboardList');
             leaderboardList.innerHTML = '<div class="loading">Loading leaderboard...</div>';
             
+            // Always load local scores first as backup
+            const localScores = JSON.parse(localStorage.getItem('leaderboard') || '[]');
+            
+            // If online features are disabled, just show local scores
+            if (!useOnlineFeatures) {
+                displayLeaderboard(localScores);
+                return;
+            }
+            
             try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+                
                 const response = await fetch(`${SUPABASE_URL}/rest/v1/scores?select=name,score&order=score.desc&limit=10`, {
                     headers: {
-                    'apikey': `${SUPABASE_KEY}`,
-                    'Authorization': `Bearer ${SUPABASE_KEY}`,
-                    }
+                        'apikey': `${SUPABASE_KEY}`,
+                        'Authorization': `Bearer ${SUPABASE_KEY}`,
+                    },
+                    signal: controller.signal
                 });
                 
-                const result = await response.json();
-
-                displayLeaderboard(result);
-                // if (result.success && result.data) {
-                // } else {
-                //     throw new Error('API returned error');
-                // }
+                clearTimeout(timeoutId);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const onlineScores = await response.json();
+                displayLeaderboard(onlineScores);
+                
             } catch (error) {
-                console.warn('Failed to load online leaderboard, using local:', error);
-                // Fallback to localStorage
-                const localScores = JSON.parse(localStorage.getItem('leaderboard') || '[]');
+                if (error.name === 'AbortError') {
+                    console.warn('Online leaderboard timed out, using local scores');
+                } else {
+                    console.warn('Failed to load online leaderboard, using local scores');
+                }
+                useOnlineFeatures = false; // Disable online features for this session
                 displayLeaderboard(localScores);
             }
         }
@@ -639,7 +911,7 @@
             leaderboardList.innerHTML = html;
         }
 
-        // Keyboard controls with space to start
+        // Enhanced keyboard controls with input buffering to prevent conflicts
         document.addEventListener('keydown', (e) => {
             if (!gameState.gameRunning) {
                 return;
@@ -662,6 +934,7 @@
                     gameState.gameStarted = true;
                     gameState.dx = 0;
                     gameState.dy = -1; // Start moving up
+                    gameState.lastDirection = {dx: 0, dy: -1};
                     document.getElementById('gameStatus').textContent = 'Playing';
                 } else {
                     // Pause/resume
@@ -673,43 +946,57 @@
             // Don't process direction keys until game has started
             if (!gameState.gameStarted) return;
             
-            // Get current direction
-            const currentDx = gameState.dx;
-            const currentDy = gameState.dy;
+            // Buffer direction inputs to prevent conflicts
+            let newDirection = null;
             
             switch(e.code) {
                 case 'ArrowUp':
                 case 'KeyW':
-                    // Only allow if not currently moving down
-                    if (currentDy !== 1) {
-                        gameState.dx = 0;
-                        gameState.dy = -1;
-                    }
+                    newDirection = {dx: 0, dy: -1};
                     break;
                 case 'ArrowDown':
                 case 'KeyS':
-                    // Only allow if not currently moving up
-                    if (currentDy !== -1) {
-                        gameState.dx = 0;
-                        gameState.dy = 1;
-                    }
+                    newDirection = {dx: 0, dy: 1};
                     break;
                 case 'ArrowLeft':
                 case 'KeyA':
-                    // Only allow if not currently moving right
-                    if (currentDx !== 1) {
-                        gameState.dx = -1;
-                        gameState.dy = 0;
-                    }
+                    newDirection = {dx: -1, dy: 0};
                     break;
                 case 'ArrowRight':
                 case 'KeyD':
-                    // Only allow if not currently moving left
-                    if (currentDx !== -1) {
-                        gameState.dx = 1;
-                        gameState.dy = 0;
-                    }
+                    newDirection = {dx: 1, dy: 0};
                     break;
+            }
+            
+            if (newDirection) {
+                // Check if this direction is valid (not opposite to current direction)
+                const currentDx = gameState.dx;
+                const currentDy = gameState.dy;
+                
+                const isValidDirection = 
+                    (newDirection.dx === 1 && currentDx !== -1) ||
+                    (newDirection.dx === -1 && currentDx !== 1) ||
+                    (newDirection.dy === 1 && currentDy !== -1) ||
+                    (newDirection.dy === -1 && currentDy !== 1);
+                
+                // Also check against the last direction in buffer to prevent double-back
+                const lastBufferedDirection = gameState.inputBuffer.length > 0 ? 
+                    gameState.inputBuffer[gameState.inputBuffer.length - 1] : null;
+                
+                const notOppositeToBuffered = !lastBufferedDirection ||
+                    (newDirection.dx !== -lastBufferedDirection.dx || newDirection.dy !== -lastBufferedDirection.dy);
+                
+                // Only add to buffer if it's a valid direction and different from the last buffered direction
+                if (isValidDirection && notOppositeToBuffered && 
+                    (!lastBufferedDirection || 
+                     lastBufferedDirection.dx !== newDirection.dx || 
+                     lastBufferedDirection.dy !== newDirection.dy)) {
+                    
+                    // Keep buffer small to prevent lag
+                    if (gameState.inputBuffer.length < 2) {
+                        gameState.inputBuffer.push(newDirection);
+                    }
+                }
             }
         });
 

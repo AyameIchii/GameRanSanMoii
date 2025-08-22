@@ -111,7 +111,6 @@
         #gameCanvas {
             border: 4px solid #1976d2;
             border-radius: 15px;
-            margin: 25px 0;
             box-shadow: 0 8px 25px rgba(25, 118, 210, 0.3);
             background: #f8f9fa;
         }
@@ -122,6 +121,27 @@
             margin: 20px 0;
             flex-wrap: wrap;
             gap: 20px;
+        }
+
+        .game-area {
+            display: flex;
+            gap: 30px;
+            align-items: flex-start;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 25px 0;
+        }
+
+        .canvas-container {
+            flex-shrink: 0;
+        }
+
+        .stats-container {
+            min-width: 280px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0;
         }
 
         .score-info, .controls-info {
@@ -189,6 +209,15 @@
                 flex-direction: column;
             }
             
+            .game-area {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .stats-container {
+                width: 100%;
+            }
+            
             .game-info {
                 flex-direction: column;
             }
@@ -233,7 +262,7 @@
                 <h3>Game Stats</h3>
                 <p>Score: <span id="currentScore">0</span></p>
                 <p>High Score: <span id="highScore">0</span></p>
-                <p>Level: <span id="currentLevel">9999</span></p>
+                <p>Level: <span id="currentLevel">1</span></p>
 
                 <p>Status: <span id="gameStatus">Ready to Start</span></p>
             </div>
@@ -286,7 +315,7 @@
         };
 
         let gameState = {
-            snake: [{x: 10, y: 10}],
+            snake: [{x: 10, y: 10}, {x: 10, y: 11}],
             food: {x: 15, y: 15},
             bigFood: null,
             bigFoodTimer: null,
@@ -307,6 +336,12 @@
             inputBuffer: [], // Buffer for direction inputs
             lastDirection: {dx: 0, dy: 0}
         };
+
+        // Make functions globally accessible for onclick handlers
+        window.startGame = startGame;
+        window.pauseGame = pauseGame;
+        window.resetGame = resetGame;
+        window.loadLeaderboard = loadLeaderboard;
 
         // Initialize game
         function init() {
@@ -336,7 +371,9 @@
             gameState.gameRunning = true;
             gameState.gamePaused = false;
             gameState.gameStarted = false;
-            gameState.snake = [{x: Math.floor(tileCount/2), y: Math.floor(tileCount/2)}];
+            const centerX = Math.floor(tileCount/2);
+            const centerY = Math.floor(tileCount/2);
+            gameState.snake = [{x: centerX, y: centerY}, {x: centerX, y: centerY + 1}];
             gameState.dx = 0;
             gameState.dy = 0;
             gameState.score = 0;
@@ -385,7 +422,9 @@
             gameState.gameRunning = false;
             gameState.gamePaused = false;
             gameState.gameStarted = false;
-            gameState.snake = [{x: Math.floor(tileCount/2), y: Math.floor(tileCount/2)}];
+            const centerX = Math.floor(tileCount/2);
+            const centerY = Math.floor(tileCount/2);
+            gameState.snake = [{x: centerX, y: centerY}, {x: centerX, y: centerY + 1}];
             gameState.dx = 0;
             gameState.dy = 0;
             gameState.score = 0;
@@ -490,6 +529,13 @@
                 } 
                 // Check big food collision
                 else if (gameState.bigFood && checkBigFoodCollision()) {
+                    // Calculate remaining score based on time elapsed
+                    const elapsed = Date.now() - gameState.bigFoodStartTime;
+                    const timeProgress = Math.min(elapsed / gameState.bigFoodDuration, 1);
+                    
+                    // Score decays from 100% to 20% over the duration
+                    const scoreMultiplier = Math.max(0.2, 1 - (timeProgress * 0.8));
+                    
                     // Clear the decay timer since food was eaten
                     if (gameState.bigFoodTimer) {
                         clearTimeout(gameState.bigFoodTimer);
@@ -498,16 +544,11 @@
                     }
                     
                     const basePoints = 50; // 5x normal food
-                    const pointsEarned = Math.round(basePoints * gameState.difficultyMultiplier);
+                    const decayedPoints = Math.round(basePoints * scoreMultiplier);
+                    const pointsEarned = Math.round(decayedPoints * gameState.difficultyMultiplier);
                     gameState.score += pointsEarned;
                     
                     document.getElementById('currentScore').textContent = gameState.score;
-                    
-                    // Add extra segments for big food
-                    for (let i = 0; i < 4; i++) {
-                        const tail = gameState.snake[gameState.snake.length - 1];
-                        gameState.snake.push({x: tail.x, y: tail.y});
-                    }
                     
                     gameState.bigFood = null;
                     // Don't generate new small food when big food is eaten
@@ -561,9 +602,9 @@
             
             const head = gameState.snake[0];
             
-            // Check collision with any part of the 3x3 big food
-            for (let dx = 0; dx < 3; dx++) {
-                for (let dy = 0; dy < 3; dy++) {
+            // Check collision with any part of the 2x2 big food
+            for (let dx = 0; dx < 2; dx++) {
+                for (let dy = 0; dy < 2; dy++) {
                     if (head.x === gameState.bigFood.x + dx && head.y === gameState.bigFood.y + dy) {
                         return true;
                     }
@@ -586,8 +627,8 @@
         function generateBigFood() {
             do {
                 gameState.bigFood = {
-                    x: Math.floor(Math.random() * (tileCount - 2)), // -2 to ensure 3x3 fits
-                    y: Math.floor(Math.random() * (tileCount - 2))
+                    x: Math.floor(Math.random() * (tileCount - 1)), // -1 to ensure 2x2 fits
+                    y: Math.floor(Math.random() * (tileCount - 1))
                 };
             } while (isBigFoodOnSnake() || isBigFoodOnFood());
             
@@ -630,8 +671,8 @@
         function isFoodOnBigFood(food) {
             if (!gameState.bigFood) return false;
             
-            for (let dx = 0; dx < 3; dx++) {
-                for (let dy = 0; dy < 3; dy++) {
+            for (let dx = 0; dx < 2; dx++) {
+                for (let dy = 0; dy < 2; dy++) {
                     if (food.x === gameState.bigFood.x + dx && food.y === gameState.bigFood.y + dy) {
                         return true;
                     }
@@ -643,8 +684,8 @@
         function isBigFoodOnSnake() {
             if (!gameState.bigFood) return false;
             
-            for (let dx = 0; dx < 3; dx++) {
-                for (let dy = 0; dy < 3; dy++) {
+            for (let dx = 0; dx < 2; dx++) {
+                for (let dy = 0; dy < 2; dy++) {
                     const bigFoodSegment = {
                         x: gameState.bigFood.x + dx,
                         y: gameState.bigFood.y + dy
@@ -700,7 +741,7 @@
             ctx.fillStyle = '#c8e6c9';
             ctx.fillRect(gameState.food.x * gridSize + 6, gameState.food.y * gridSize + 6, gridSize - 12, gridSize - 12);
             
-            // Draw big food (3x3) with decay effect
+            // Draw big food (2x2) with decay effect
             if (gameState.bigFood) {
                 // Calculate decay progress (0 to 1)
                 let decayProgress = 0;
@@ -718,8 +759,8 @@
                 ctx.globalAlpha = alpha;
                 ctx.fillStyle = '#ff6f00';
                 
-                for (let dx = 0; dx < 3; dx++) {
-                    for (let dy = 0; dy < 3; dy++) {
+                for (let dx = 0; dx < 2; dx++) {
+                    for (let dy = 0; dy < 2; dy++) {
                         const x = (gameState.bigFood.x + dx) * gridSize + 2 + sizeReduction/2;
                         const y = (gameState.bigFood.y + dy) * gridSize + 2 + sizeReduction/2;
                         const size = gridSize - 4 - sizeReduction;
@@ -729,8 +770,8 @@
                 
                 // Add glow to big food (also affected by decay)
                 ctx.fillStyle = '#ffcc80';
-                for (let dx = 0; dx < 3; dx++) {
-                    for (let dy = 0; dy < 3; dy++) {
+                for (let dx = 0; dx < 2; dx++) {
+                    for (let dy = 0; dy < 2; dy++) {
                         const x = (gameState.bigFood.x + dx) * gridSize + 6 + sizeReduction/2;
                         const y = (gameState.bigFood.y + dy) * gridSize + 6 + sizeReduction/2;
                         const size = gridSize - 12 - sizeReduction;
